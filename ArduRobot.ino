@@ -61,6 +61,9 @@ void loop() {
     if (arNoise(findingDistance)) {
       if (gNoiseCount > 7) {
         // reset servo and backward
+        gServoPos = 90;
+        gEyes.write(gServoPos);
+        
         arBackward();
 
         // let car continued to run
