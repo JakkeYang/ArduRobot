@@ -1,15 +1,5 @@
 #include <Servo.h>
 
-Servo gEyes;
-
-// 1 running
-// 0 stopped and checking path
-// 2 finding path complete
-int gRun = 1;
-
-// previous distance to measure
-int gPrevDistance = 0; 
-
 const int KServoPin = 9;
 const int KTrigPin = 2;
 const int KEchoPin = 3;
@@ -24,10 +14,21 @@ const int KMaxLeftAngle = 160;
 const int KMaxRightAngle = 20;
 const float KPi = 3.14;
 
+Servo gEyes;
+
+// 1 running
+// 0 stopped and checking path
+// 2 finding path complete
+int gRun = 1;
+
+// previous distance to measure
+int gPrevDistance = KCollisionDistance; 
+
 int gServoPos = 90;
+
 // 30, 60, 90, 120, 150
 int gArrDistance[5] = {0};
-int gArrIndex = 0;
+
 int gNoiseCount = 0;
 
 void setup() {
@@ -59,42 +60,29 @@ void loop() {
     int findingDistance = arDistance();
 
     if (arNoise(findingDistance)) {
-      if (gNoiseCount > 7) {
-        // reset servo and backward
-        gServoPos = 90;
-        gEyes.write(gServoPos);
-        
-        arBackward();
-
-        // let car continued to run
-        gRun = 1;
-
-        // reset noise count
-        gNoiseCount = 0;
-
-        delay(500);
-      }
-      // radar fails, run next radar scanning
-      delay(100);
-
       // increase noise count
       ++gNoiseCount;
     } else {
-      if (gArrIndex < 4) {
+      if (gServoPos < 150) {
         // fill finding distance array
         // step1: fill the distance array
-        gArrDistance[gArrIndex] = findingDistance;
+        if (gServoPos == 30) {
+          gArrDistance[0] = findingDistance;
+        } else if (gServoPos == 60) {
+          gArrDistance[1] = findingDistance;
+        } else if (gServoPos == 90) {
+          gArrDistance[2] = findingDistance;
+        } else if (gServoPos == 120) {
+          gArrDistance[3] = findingDistance;
+        } 
 
         // step2: calculating new postion (+30 degree)
-        gServoPos += 30;
-        
-        // step3: move index to next element
-        ++gArrIndex;
+        gServoPos += 1;
 
         // step4: move servo to new postion
         gEyes.write(gServoPos);
 
-        Serial.println(gServoPos);
+        delay(10);
       } else {
         // fill finding distance array is over
         // step1: fill the last element, 150 degree
@@ -102,7 +90,6 @@ void loop() {
 
         // step2: reset
         gServoPos = 90;
-        gArrIndex = 0;
 
         // step3: set status to "found path"
         gRun = 2;
@@ -110,9 +97,6 @@ void loop() {
         // step4: reset the servo position
         gEyes.write(gServoPos);
       }
-
-      // delay some time
-      delay(200);
     }
   } else if (gRun == 2) {
     // finding path is over
@@ -138,9 +122,15 @@ void loop() {
       if (maxId == 2) {
         arBackward();
       } else if (maxId < 2) {
+        arBackward();
+
+        arStop();
         // should turn right
         arTurnRightTo(90-(maxId+1)*30);
       } else {
+        arBackward();
+
+        arStop();
         // should turn left
         arTurnLeftTo((maxId-2)*30);
       }
@@ -150,6 +140,12 @@ void loop() {
   } else { // gRun == 1
     // running
     int distance = arDistance();
+
+    if (arNoise(distance)) {
+      // noise, ignore
+      return;
+    }
+    
     if (distance < KCollisionDistance) {
       // step 1: stop
       arStop();
@@ -163,7 +159,6 @@ void loop() {
       // step4: servo to 30 degrees
       gServoPos = 30;
       gEyes.write(gServoPos);
-      gArrIndex = 0;
       
     } else {
       gRun = 1;
@@ -276,7 +271,7 @@ Serial.println(dis);
 boolean arNoise(int distance)
 {
   // judging noise or not, change infactor to improve accuracy
-  if (distance >= gPrevDistance*10) {
+  if (distance >= gPrevDistance*50) {
     return true;
   } else {
     return false;
