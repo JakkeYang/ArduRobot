@@ -127,12 +127,15 @@ void loop() {
         arStop();
         // should turn right
         arTurnRightTo(90-(maxId+1)*30);
+
+        delay(300);
       } else {
         arBackward();
 
         arStop();
         // should turn left
         arTurnLeftTo((maxId-2)*30);
+        delay(300);
       }
     }
 
